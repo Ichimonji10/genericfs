@@ -1,0 +1,178 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% FILE   : doc-Kernel-Programming.tex
+% SUBJECT: Information on Linux Kernel programming in general.
+% AUTHOR : (C) Copyright 2011 by Peter C. Chapin
+%
+% TODO:
+%
+% + See comments in the text.
+%
+% Send comments or bug reports to:
+%
+%    Peter C. Chapin
+%    Computer Information Systems
+%    Vermont Technical College
+%    Randolph Center, VT 05061
+%    PChapin@vtc.vsc.edu
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\section{Preliminaries}
+\label{sec:preliminaries}
+
+It is not my intention to discuss kernel programming in detail here. There are other sources of
+information about that subject that you should consult. However, I do want to talk a little
+about the mechanics of compiling and testing \GenericFS. If you are only interested in
+installing \GenericFS\ and do not intend to modify or enhance it, you should still read the
+subsection below on compiling \GenericFS. Otherwise you can skip the rest of this section.
+
+\subsection{Compiling \GenericFS}
+\label{sec:compiling}
+
+The source archive for \GenericFS\ contains a makefile that controls the build process. Starting
+with kernel version 2.6.x, the module build process is highly integrated with the kernel build
+system. You need to use properly constructed makefiles if you are to build a module in a
+consistent way. Manually issuing compilation commands is not feasible.
+
+The makefile provided with \GenericFS\ assumes that you will be compiling the file system driver
+for use with the same kernel that is executing at the time you do the compile. If this is not
+the case you will need to modify \filename{Makefile} to reflect your intended paths.
+
+The post-2.6.x way to build external modules\footnote{Modules with source located outside the
+  kernel source tree are called ``external'' modules.} requires that you have first configured
+the kernel sources against which you are building your module.
+
+\todo{Describe the module compilation process in a bit more detail and/or provide references to
+  other documents that do so.}
+
+\subsection{Creating a \GenericFS\ Partition}
+\label{sec:partition}
+
+To test \GenericFS\ you will need a free disk partition. The size is not critical although it
+might be nice if it was large enough to exercise the file system in a reasonable way. You can
+use the \command{fdisk} command to create the partition on a physical disk or on a virtual disk
+created by virtualization software such as VirtualBox. You may have to reboot your machine after
+creating the new partition so the kernel will see the new partition table. Look for the device
+files for the new disk and its partitions in the \filename{/dev} directory. \todo{Describe the
+  process of using \command{fdisk} in more detail.}
+
+To create a valid \GenericFS\ file system on your new partition you should use an appropriate
+user mode tool. An interactive tool of this sort is included in the \GenericFS\ package and is
+described in Section~\ref{sec:implementation-disktool}. It is called \command{disktool}. It
+plays the role of both \command{mkfs} and \command{fsck}. It also gives you a way of creating
+and viewing \GenericFS\ data structures on your partition and thus can be helpful for testing
+and debugging the \GenericFS\ driver.
+
+If you do not have any unpartitioned disk space on your system, you can still create a partition
+for \GenericFS\ by using the loop back driver. This allows you to treat an ordinary file like a
+block device. Once configured you can make a \GenericFS\ file system inside this file using the
+interactive tool just as you would on any other partition. Furthermore once you load the
+\GenericFS\ driver you'll be able to mount the file system inside this file as well. Another
+advantage to this approach is that you can copy the file containing the \GenericFS\ partition to
+another computer for inspection or experimentation. This is much easier than moving physical
+disk drives around.
+
+To set up an image file for the loop back driver, first create a file of some suitable size
+using the \command{dd} command. For example, to create a 200 MiB file using a command such as
+\begin{verbatim}
+$ dd if=/dev/zero of=disk.img count=409600
+\end{verbatim}
+
+Here the input file is the special file \filename{/dev/zero} which returns an endless stream of
+zero bytes. The output file is \filename{disk.img} in this example but it could have any name.
+The count is given in units of 512 bytes so 409600 corresponds to an output file of exactly 200
+MiB.
+
+After creating an empty disk image, you can use \command{disktool} to format that file with a
+\GenericFS\ partition. Just point the tool to \filename{disk.img} instead of a block device
+file. Once the image file is formatted and once the \GenericFS\ driver has been loaded into the
+kernel, you can mount the image file with the command
+\begin{verbatim}
+# mount -o loop disk.img gfs
+\end{verbatim}
+
+Here the \command{loop} option specifies that you wish to use the loop back driver. The name
+\filename{gfs} is the mount point. It should be a pre-existing empty directory. Note that the
+\command{mount} command must be run as root. After executing the mount command you should be
+able to change into the \filename{gfs} directory and use the files there normally. Don't forget
+to unmount the file system before attempt to manipulate the image file directly, for example,
+with \command{disktool}.
+
+\subsubsection*{Exercises}
+
+\begin{enumerate}
+
+\item The \command{fdisk} program will assign partition type 83 (``Linux'') to any new partition
+  by default. Is this really an appropriate type for an experimental file system?
+
+\item Set up a second file system image file and try formatting the image file using a standard
+  file system such as ext3.
+
+\item Would there be any complications in putting a file for the loop back driver on a
+  \GenericFS\ partition and then building a \GenericFS\ file system inside that file? Think
+  about what happens inside the \GenericFS\ driver. Try it.
+
+\end{enumerate}
+
+\subsection{Debugging \GenericFS}
+\label{sec:debugging}
+
+Debugging kernel modules is difficult because they are not normal processes and thus can't be
+controlled by a debugger. There are a number of techniques you can use, however.
+
+\subsubsection{Basic Debugging Techniques}
+
+The first technique is to simple include extra \code{printk} calls in your module. You can then
+observe which of these calls are triggered by looking for the output in the system log file (or
+in other places depending on the configuration of \command{syslog} and the priority level you
+give the \code{printk}). This technique can be effective but it won't help you if the functions
+in your module are not getting called. Also you should be sure to enclose your \code{printk}
+statements with conditional compilation directives so that they can be turned on and off by
+simply recompiling your module with appropriate options.
+
+In fact, there is currently a facility in the \GenericFS\ source for producing and managing
+debugging messages this way. The details are in \filename{global.h} but the specific macros of
+interest are shown in Figure~\ref{fig:debugging-macros}.
+
+\begin{figure*}[htbp]
+  \centering
+  \begin{wbigbox}
+\begin{lstlisting}{}
+#define DEBUG_HEADER KERN_INFO "GenericFS DEBUG: %s: "
+
+#if DEBUG_LEVEL == 0
+  #define GENERIC_DEBUG(level, statement)
+#else
+  #define GENERIC_DEBUG(level, statement) \
+    if (DEBUG_LEVEL >= level) { statement; }
+#endif
+
+#define ENTERED \
+  GENERIC_DEBUG(1, printk(DEBUG_HEADER "Entered\n", __FUNCTION__))
+\end{lstlisting}
+  \end{wbigbox}
+  \caption{\GenericFS\ Debugging Macros (in \filename{global.h})}
+  \label{fig:debugging-macros}
+\end{figure*}
+
+Several different ``debugging levels'' can be used with these macros. Level one is the default
+and is intended to output messages when each significant \GenericFS\ function is entered. This
+is easily accomplished by using the \texttt{ENTERED} macro at the top of each such function. A
+debug level of zero removes the debugging messages entirely. Higher debug levels are intended to
+trace progressively finer details in the execution of the module. This is implemented by using
+the \texttt{GENERIC\-\_DEBUG} macro where appropriate. To change the debug level one must modify
+its definition in \filename{global.h} and recompile the module. In a future version of the
+\GenericFS\ driver, the debug level might be dynamically configurable.
+
+With the debugging messages enabled you can gain insight on the operation of the \GenericFS\
+driver by observing what happens when a particular user mode program executes. For example, to
+help understand how \GenericFS\ services a particular system call, write a program that invokes
+that system call and then see which functions (if any) in the \GenericFS\ driver get invoked.
+The program \command{strace} can help you find precisely which system calls your test program
+uses. You should use a tool like \command{strace} instead of just guessing what system calls are
+invoked because many apparent ``system'' calls are actually library functions built on top of
+the true system calls\footnote{POSIX does not specify which functions are system calls and which
+  are library functions. POSIX only requires that all functions it specifies be supported.}.
+
+\subsubsection{Kernel Debugger}
+
+\todo{Talk about using the kernel debugger.}
