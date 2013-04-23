@@ -45,7 +45,7 @@ static void clear_partition( int fd )
     mvaddstr( 1, 1, "Clearing partition..." ); refresh( );
 
     lseek( fd, 0, SEEK_SET );
-    memset( workspace, 0, BLOCKSIZE );    // Maybe another value (other than 0) would be better?
+    memset( workspace, 0x55, BLOCKSIZE );    // Use a non-zero value to stand out better.
     for( i = 0; i < block_count; ++i ) {
         write( fd, workspace, BLOCKSIZE );
     }

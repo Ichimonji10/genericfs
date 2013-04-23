@@ -1,0 +1,11 @@
+disktool/disktool
+disktool/*.o
+disktool/disk.img
+disktool/gfs/*
+doc/*.aux
+doc/*.bbl
+doc/*.blg
+doc/*.log
+doc/*.out
+doc/*.pdf
+doc/*.toc
