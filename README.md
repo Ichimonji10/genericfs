@@ -23,3 +23,6 @@ folder are as follows.
   components.
   
 + tools: Various programs of use during the development and testing of GenericFS.
+
+Peter C. Chapin  
+PChapin@vtc.vsc.edu
