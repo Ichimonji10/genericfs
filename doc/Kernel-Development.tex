@@ -268,23 +268,19 @@ own private directory under the \filename{/lib/modules} directory.
 You should next copy and rename three files from your freshly built kernel to the
 \filename{/boot} directory. For example
 \begin{commands}
-\# cp -p arch/x86/boot/bzImage /boot/vmlinuz-3.6.11 \\
-\# cp -p .config /boot/config-3.6.11 \\
-\# cp -p System.map /boot/System.map-3.6.11
+\# rsync -t arch/x86/boot/bzImage /boot/vmlinuz-3.6.11 \\
+\# rsync -t .config /boot/config-3.6.11 \\
+\# rsync -t System.map /boot/System.map-3.6.11
 \end{commands}
 
 The \filename{System.map} file contains a list of all symbols in the kernel and their
 corresponding addresses. This can be useful for debugging and for interpreting stack traces in
 kernel oops messages. \todo{why is it important for this file to be in \filename{/boot}?}
 
-The \command{-p} option in the commands above causes \command{cp} to preserve the timestamps on
-the copy. This means the times on the files in \filename{/boot} will reflect when those files
-were orginally created. It is sometimes useful to retain this information for reference. However
-the \command{-p} option will also preserve the file owner and permission settings. Thus after
-copying the files you might want to manually change the owner and permissions on the new files
-to match those already in \filename{/boot}. For example the configuration and system map files
-are typically readable by everyone but the kernel image itself is typically only readable by
-root.
+The \command{-t} option in the commands above causes \command{rsync} to preserve modification
+times for the files being copied. This means the times on the files in \filename{/boot} will
+reflect when those files were orginally created. It is sometimes useful to retain this
+information for reference.
 
 \subsubsection{Making \filename{initrd}}
 
