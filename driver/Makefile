@@ -7,10 +7,7 @@
 ###########################################################################
 
 # If the KERNEL environment variable is not set, use the running kernel.
-ifeq ($(KERNEL),)
-	KERNEL = $(shell uname -r)
-endif
-
+KERNEL ?= $(shell uname -r)
 
 all:
 	make -C /lib/modules/$(KERNEL)/build M=$(PWD) modules
